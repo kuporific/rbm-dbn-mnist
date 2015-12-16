@@ -5,123 +5,147 @@ import java.util.List;
 
 public class SimpleRBMTrainer
 {
-    public float momentum;
-    final float l2;
-    final Float targetSparsity;
-    public float learningRate;
-    private LayerFactory layerFactory;
+    private final float momentum;
+    private final float l2;
+    private final Float targetSparsity;
+    private final float learningRate;
 
-    Layer[] gw;
-    Layer gv;
-    Layer gh;
+    private Layer[] gWeights;
+    private Layer gVisible;
+    private Layer gHidden;
 
-    public SimpleRBMTrainer(float momentum, float l2, Float targetSparsity, Float learningRate, LayerFactory layerFactory)
+    public SimpleRBMTrainer(
+            float momentum,
+            float l2,
+            Float targetSparsity,
+            Float learningRate)
     {
         this.momentum = momentum;
         this.l2 = l2;
         this.targetSparsity = targetSparsity;
         this.learningRate = learningRate;
-        this.layerFactory = layerFactory;
     }
 
-    public double learn(final SimpleRBM rbm, List<Layer> inputBatch, boolean reverse)
+    public double learn(
+            final SimpleRBM rbm,
+            List<Layer> inputBatch,
+            boolean reverse)
     {
-        int batchsize = inputBatch.size();
+        final int batchSize = inputBatch.size();
 
-        if (gw == null || gw.length != rbm.biasHidden.size() || gw[0].size() != rbm.biasVisible.size())
+        if (gWeights == null
+                || gWeights.length != rbm.biasHidden.size()
+                || gWeights[0].size() != rbm.biasVisible.size())
         {
-            gw = new Layer[rbm.biasHidden.size()];
-            for(int i=0; i<gw.length; i++)
-                gw[i] = layerFactory.create(rbm.biasVisible.size());
+            gWeights = new Layer[rbm.biasHidden.size()];
+            for (int i = 0; i < gWeights.length; i++)
+            {
+                gWeights[i] = new Layer(rbm.biasVisible.size());
+            }
 
-            gv = layerFactory.create(rbm.biasVisible.size());
-            gh = layerFactory.create(rbm.biasHidden.size());
+            gVisible = new Layer(rbm.biasVisible.size());
+            gHidden = new Layer(rbm.biasHidden.size());
         }
         else
         {
-            for(int i=0; i<gw.length; i++)
-                gw[i].clear();
+            for (Layer aGw : gWeights)
+            {
+                aGw.clear();
+            }
 
-            gv.clear();
-            gh.clear();
+            gVisible.clear();
+            gHidden.clear();
         }
-        
+
         // Contrastive Divergance
         for (Layer input : inputBatch)
         {
-            try {
-                Iterator<Tuple> it = reverse ? rbm.reverseIterator(input) : rbm.iterator(input);
+            try
+            {
+                Iterator<Tuple> it = reverse
+                        ? rbm.reverseIterator(input)
+                        : rbm.iterator(input);
 
-                Tuple t1 = it.next();    //UP
-                Tuple t2 = it.next();    //Down
+                Tuple up = it.next();
+                Tuple down = it.next();
 
-                for (int i=0; i< gw.length; i++)
-                    for (int j=0; j<gw[i].size(); j++)
-                        gw[i].add(j, (t1.hidden.get(i) * t1.visible.get(j)) - (t2.hidden.get(i) * t2.visible.get(j)));
+                for (int i = 0; i < gWeights.length; i++)
+                {
+                    final Layer weight = gWeights[i];
+                    for (int j = 0; j < gWeights[i].size(); j++)
+                    {
+                        weight.add(
+                                j,
+                                (up.hidden.get(i) * up.visible.get(j))
+                                - (down.hidden.get(i) * down.visible.get(j)));
+                    }
+                }
 
-                for (int i = 0; i < gv.size(); i++)
-                    gv.add(i, t1.visible.get(i) - t2.visible.get(i));
+                for (int i = 0; i < gVisible.size(); i++)
+                {
+                    gVisible.add(i, up.visible.get(i) - down.visible.get(i));
+                }
 
-                for (int i = 0; i < gh.size(); i++)
-                    gh.add(i,  targetSparsity == null ? t1.hidden.get(i) - t2.hidden.get(i) : targetSparsity - t1.hidden.get(i));
-
-            } catch (Throwable t) {
+                for (int i = 0; i < gHidden.size(); i++)
+                {
+                    gHidden.add(
+                            i,
+                            targetSparsity == null
+                                    ? up.hidden.get(i) - down.hidden.get(i)
+                                    : targetSparsity - up.hidden.get(i));
+                }
+            }
+            catch (Throwable t)
+            {
                 t.printStackTrace();
             }
         }
 
-
         // Average
-        for (int i = 0; i < gw.length; i++)
+        for (int i = 0; i < gWeights.length; i++)
         {
-            for (int j = 0; j < gw[i].size(); j++)
+            for (int j = 0; j < gWeights[i].size(); j++)
             {
-                gw[i].div(j, batchsize);
+                float x = gWeights[i].get(j) / batchSize * (1 - momentum);
+                x = x + momentum * (x - l2 * rbm.weights[i].get(j));
 
-                gw[i].mult(j, 1 - momentum);
-                gw[i].add(j,  momentum * (gw[i].get(j) - l2*rbm.weights[i].get(j)));
-                
-                rbm.weights[i].add(j, learningRate * gw[i].get(j));
+                rbm.weights[i].add(j, learningRate * x);
             }
         }
 
         double error = 0.0;
 
-        for (int i = 0; i < gv.size(); i++)
+        for (int i = 0; i < gVisible.size(); i++)
         {
-            gv.div(i, batchsize);
+            float x = gVisible.get(i) / batchSize;
 
-            error += Math.pow(gv.get(i), 2);
+            error += x * x;
 
-            gv.mult(i, 1 - momentum);
-            gv.add(i, momentum * (gv.get(i) * rbm.biasVisible.get(i)));
+            x = x * (1 - momentum);
+            x = x + (momentum * (x * rbm.biasVisible.get(i)));
 
-            rbm.biasVisible.add(i, learningRate * gv.get(i));
+            rbm.biasVisible.add(i, learningRate * x);
         }
 
-        error = Math.sqrt(error/gv.size());
+        error = Math.sqrt(error / gVisible.size());
 
         if (targetSparsity != null)
         {
-            for (int i=0; i<gh.size(); i++)
+            for (int i = 0; i < gHidden.size(); i++)
             {
-                gh.div(i,batchsize);
-                gh.set(i, targetSparsity - gh.get(i));
+                gHidden.set(i, targetSparsity - gHidden.get(i) / batchSize);
             }
         }
         else
         {
-            for (int i = 0; i < gh.size(); i++)
+            for (int i = 0; i < gHidden.size(); i++)
             {
-                gh.div(i, batchsize);
+                float x = gHidden.get(i) / batchSize * (1 - momentum);
+                x = x + momentum * x * rbm.biasHidden.get(i);
 
-                gh.mult(i, 1 - momentum);
-                gh.add(i, momentum * (gh.get(i) * rbm.biasHidden.get(i)));
-
-                rbm.biasHidden.add(i, learningRate * gh.get(i));
+                rbm.biasHidden.add(i, learningRate * x);
             }
         }
-
 
         return error;
     }

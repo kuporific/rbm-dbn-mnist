@@ -2,10 +2,12 @@ package com.github.tjake.rbm.minst;
 
 
 import java.io.File;
+import java.io.IOException;
 
-public class Demo {
-    public static void main(String[] args) {
-
+public class Demo
+{
+    public static void main(String[] args)
+    {
         if (args.length < 2)
             usage("");
 
@@ -33,7 +35,8 @@ public class Demo {
             if (!images.isFile())
                 usage("invalid minst images file: "+args[2]);
 
-            BinaryMinstDBN.start(labels,images,saveto);
+            BinaryMinstDBN dbn = new BinaryMinstDBN(labels, images);
+            dbn.start(saveto);
         } else if (args[0].equalsIgnoreCase("gen")) {
             File load = new File(args[1]);
 

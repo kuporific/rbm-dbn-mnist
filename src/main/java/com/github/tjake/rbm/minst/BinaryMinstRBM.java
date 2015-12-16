@@ -31,7 +31,7 @@ public class BinaryMinstRBM extends Canvas {
         dr = new MinstDatasetReader(labels, images);
 
         rbm = new SimpleRBM(dr.cols * dr.rows, 10 * 10, false, layerFactory);
-        trainer = new SimpleRBMTrainer(0.2f, 0.001f, 0.2f, 0.1f, layerFactory);
+        trainer = new SimpleRBMTrainer(0.2f, 0.001f, 0.2f, 0.1f);
     }
 
     float[] learn() {
@@ -39,7 +39,7 @@ public class BinaryMinstRBM extends Canvas {
         List<Layer> inputBatch = new ArrayList<Layer>();
 
         for (int j = 0; j < 30; j++) {
-            trainItem = dr.getTrainingItem();
+            trainItem = dr.getRandomTrainingItem();
             Layer input = layerFactory.create(trainItem.data.length);
 
             for (int i = 0; i < trainItem.data.length; i++)
@@ -60,7 +60,7 @@ public class BinaryMinstRBM extends Canvas {
     Iterator<Tuple> evaluate() {
 
 
-        MinstItem test = dr.getTestItem();
+        MinstItem test = dr.getRandomTestItem();
 
         Layer input = layerFactory.create(test.data.length);
 

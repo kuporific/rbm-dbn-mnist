@@ -1,6 +1,6 @@
 package com.github.tjake.rbm;
 
-public  class Tuple
+public class Tuple
 {
     public final Layer visible;
     public final Layer hidden;

@@ -19,7 +19,6 @@ public class GenerativeMinstDBN extends Canvas {
     String label;
 
     public GenerativeMinstDBN(StackedRBM rbm) {
-        super();
         this.rbm = rbm;
     }
 
@@ -29,7 +28,6 @@ public class GenerativeMinstDBN extends Canvas {
 
             int current = count++ % 10;
             label = String.valueOf(current);
-
 
             SimpleRBM r = rbm.getInnerRBMs().get(rbm.getInnerRBMs().size() - 1);
 
@@ -59,7 +57,7 @@ public class GenerativeMinstDBN extends Canvas {
                     input = new Layer(newInput);
                 }
 
-                input = prevRbm.activateVisible(input,null);
+                input = prevRbm.activateVisible(input);
             }
         }
         repaint();
@@ -113,7 +111,6 @@ public class GenerativeMinstDBN extends Canvas {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
 
         JFrame frame = new JFrame("MINST Generative Draw");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

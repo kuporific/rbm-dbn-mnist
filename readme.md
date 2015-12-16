@@ -1,3 +1,18 @@
+Differences from source repo
+============================
+
+This fork added additional classes to analyze spectrograms of classical piano works. The audio files were taken from the [Classical Piano Midi Page](http://www.piano-midi.de/) and processed by the utility classes in the `utility` package. The `com.github.tjake.rbm.music` package contains classes based on their `com.github.tjake.rbm.minst` counterparts, but they should also be generic enough that they can also analyze the MNIST data set with little modification.
+
+Other changes include making some of the classes in `com.github.tjake.rbm` a little more generic, as well as general formatting changes.
+
+#### Audio File Processing Steps
+
+1. MP3 files were downloaded from the [Classical Piano Midi Page](http://www.piano-midi.de/)
+1. MP3 audio file were converted to WAV via the `ConvertAllMp3ToWav` class
+1. WAV files were imported into [Virtual ANS](http://www.warmplace.ru/soft/ans/) and exported as PNG spectrograms (for audio, Virtual ANS only reads the WAV file type)
+1. Spectrograms were cropped, scaled down, and partitioned by the `ScaleAndPartitionSpectrogram` class
+1. those new PNG files were added to the `resources/test` and `resources/train` directories
+
 rbm-dbn-mnist
 ==========
 

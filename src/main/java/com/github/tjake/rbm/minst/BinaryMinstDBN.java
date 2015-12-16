@@ -1,46 +1,65 @@
 package com.github.tjake.rbm.minst;
 
 
-import com.github.tjake.rbm.*;
+import com.github.tjake.rbm.BinaryLayer;
+import com.github.tjake.rbm.Layer;
+import com.github.tjake.rbm.LayerFactory;
+import com.github.tjake.rbm.SimpleRBM;
+import com.github.tjake.rbm.StackedRBM;
+import com.github.tjake.rbm.StackedRBMTrainer;
+import com.github.tjake.rbm.Tuple;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-public class BinaryMinstDBN {
-    static MinstDatasetReader dr;
-    StackedRBM rbm;
-    final StackedRBMTrainer trainer;
-    final LayerFactory layerFactory = new LayerFactory();
+public class BinaryMinstDBN
+{
+    private final MinstDatasetReader dr;
+    private final StackedRBM rbm;
+    private final StackedRBMTrainer trainer;
+    private final LayerFactory layerFactory = new LayerFactory();
 
-    public BinaryMinstDBN(File labels, File images) {
+    public BinaryMinstDBN(File labels, File images)
+    {
         dr = new MinstDatasetReader(labels, images);
-
         rbm = new StackedRBM();
-        trainer = new StackedRBMTrainer(rbm, 0.5f, 0.001f, 0.2f, 0.2f, layerFactory);
+        trainer = new StackedRBMTrainer(rbm, 0.5f, 0.001f, 0.2f, 0.2f);
     }
 
-    void learn(int iterations, boolean addLabels, int stopAt) {
+    private void learn(int iterations, boolean addLabels, int stopAt)
+    {
+        final int learnSize = 30;
+        // Get random input
+        final List<Layer> inputBatch = new ArrayList<>(learnSize);
+        final List<Layer> labelBatch = addLabels
+                ? new ArrayList<>(learnSize)
+                : Collections.<Layer>emptyList();
 
-        for (int p = 0; p < iterations; p++) {
+        for (int p = 0; p < iterations; p++)
+        {
+            inputBatch.clear();
+            labelBatch.clear();
 
-            // Get random input
-            List<Layer> inputBatch = new ArrayList<Layer>();
-            List<Layer> labelBatch = addLabels ? new ArrayList<Layer>() : null;
+            for (int j = 0; j < learnSize; j++)
+            {
+                MinstItem trainItem = dr.getRandomTrainingItem();
+                inputBatch.add(
+                        new BinaryLayer(
+                                layerFactory.create(trainItem.data)));
 
-
-            for (int j = 0; j < 30; j++) {
-                MinstItem trainItem = dr.getTrainingItem();
-                Layer input = layerFactory.create(trainItem.data.length);
-
-                for (int i = 0; i < trainItem.data.length; i++)
-                    input.set(i, trainItem.data[i]);
-
-                inputBatch.add(new BinaryLayer(input));
-
-                if (addLabels) {
-                    float[] labelInput = new float[10];
+                if (addLabels)
+                {
+                    float[] labelInput = new float[MinstItem.NUMBER_OF_LABELS];
                     labelInput[Integer.valueOf(trainItem.label)] = 1.0f;
                     labelBatch.add(layerFactory.create(labelInput));
                 }
@@ -49,83 +68,107 @@ public class BinaryMinstDBN {
             double error = trainer.learn(inputBatch, labelBatch, stopAt);
 
             if (p % 100 == 0)
-                System.err.println("Iteration " + p + ", Error = " + error+", Energy = "+rbm.freeEnergy());
+            {
+                System.out.println(
+                        "Iteration " + p
+                                + ", Error = " + error
+                                + ", Energy = " + rbm.freeEnergy());
+            }
         }
     }
 
-    Iterator<Tuple> evaluate(MinstItem test) {
-
-        Layer input = layerFactory.create(test.data.length);
-
-        for (int i = 0; i < test.data.length; i++)
-            input.set(i, test.data[i]);
-
-        input = new BinaryLayer(input);
+    private Iterator<Tuple> evaluate(MinstItem test)
+    {
+        Layer input = new BinaryLayer(layerFactory.create(test.data));
 
         int stackNum = rbm.getInnerRBMs().size();
 
-        for (int i = 0; i < stackNum; i++) {
-
+        for (int i = 0; i < stackNum; i++)
+        {
             SimpleRBM iRBM = rbm.getInnerRBMs().get(i);
 
-            if (iRBM.biasVisible.size() > input.size()) {
+            if (iRBM.biasVisible.size() > input.size())
+            {
                 Layer newInput = new Layer(iRBM.biasVisible.size());
 
-                System.arraycopy(input.get(), 0, newInput.get(), 0, input.size());
+                System.arraycopy(
+                        input.get(), 0,
+                        newInput.get(), 0,
+                        input.size());
+
                 for (int j = input.size(); j < newInput.size(); j++)
+                {
                     newInput.set(j, 0.1f);
+                }
 
                 input = newInput;
             }
 
-            if (i == (stackNum - 1)) {
+            if (i == (stackNum - 1))
+            {
                 return iRBM.iterator(input);
             }
 
-            input = iRBM.activateHidden(input, null);
+            input = iRBM.activateHidden(input);
         }
 
-        return null;
+        throw new IllegalStateException(
+                "Should have returned before reaching here...");
     }
 
-
-    public static void start(File labels, File images, File saveto) {
-
-        BinaryMinstDBN m = new BinaryMinstDBN(labels,images);
-
+    public void start(File saveto)
+    {
         boolean prevStateLoaded = false;
 
-        if (saveto.exists()){
-            try {
-                DataInput input = new DataInputStream(new BufferedInputStream(new FileInputStream(saveto)));
-                m.rbm.load(input, m.layerFactory);
+        if (saveto.exists())
+        {
+            try
+            {
+                rbm.load(
+                        new DataInputStream(
+                                new BufferedInputStream(
+                                        new FileInputStream(saveto))),
+                        layerFactory);
                 prevStateLoaded = true;
-
-            } catch (IOException e) {
+            }
+            catch (IOException e)
+            {
                 e.printStackTrace();
             }
         }
 
-
-        if (!prevStateLoaded) {
+        System.out.println("prevStateLoaded: " + prevStateLoaded);
+        if (!prevStateLoaded)
+        {
             int numIterations = 1000;
 
-            m.rbm.setLayerFactory(m.layerFactory).addLayer(dr.rows * dr.cols, false).addLayer(500, false).addLayer(500, false).addLayer(2000, false).withCustomInput(510).build();
+            rbm.setLayerFactory(layerFactory)
+                    .addLayer(dr.rows * dr.cols, false)
+                    .addLayer(500, false)
+                    .addLayer(500, false)
+                    .addLayer(2000, false)
+                    .withCustomInput(510)
+                    .build();
 
-            System.err.println("Training level 1");
-            m.learn(numIterations, false, 1);
-            System.err.println("Training level 2");
-            m.learn(numIterations, false, 2);
-            System.err.println("Training level 3");
-            m.learn(numIterations, true, 3);
+            System.out.println("Training level 1");
+            learn(numIterations, false, 1);
+            System.out.println("Training level 2");
+            learn(numIterations, false, 2);
+            System.out.println("Training level 3");
+            learn(numIterations, true, 3);
 
-            try {
-                DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(saveto)));
-                m.rbm.save(out);
+            try
+            {
+                DataOutputStream out = new DataOutputStream(
+                        new BufferedOutputStream(
+                                new FileOutputStream(saveto)));
+                rbm.save(out);
 
                 out.flush();
                 out.close();
-            } catch (IOException e) {
+            }
+            catch (IOException e)
+            {
                 e.printStackTrace();
             }
         }
@@ -134,55 +177,57 @@ public class BinaryMinstDBN {
         double numWrong = 0;
         double numAlmost = 0.0;
 
-        while (true) {
-            MinstItem testCase = m.dr.getTestItem();
+        final int toTest = 1000;
+        for (int count = 0; count < toTest; count++)
+        {
+            MinstItem testCase = dr.getRandomTestItem();
 
-            Iterator<Tuple> it = m.evaluate(testCase);
+            Iterator<Tuple> it = evaluate(testCase);
 
             float[] labeld = new float[10];
 
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 2; i++)
+            {
                 Tuple t = it.next();
 
-                for (int j = (t.visible.size() - 10), k = 0; j < t.visible.size() && k < 10; j++, k++) {
+                for (int j = (t.visible.size() - 10), k = 0;
+                     j < t.visible.size() && k < 10;
+                     j++, k++)
+                {
                     labeld[k] += t.visible.get(j);
                 }
             }
 
             float max1 = 0.0f;
-            float max2 = 0.0f;
             int p1 = -1;
             int p2 = -1;
 
-            System.err.print("Label is: " + testCase.label);
-
-
-            for (int i = 0; i < labeld.length; i++) {
+            for (int i = 0; i < labeld.length; i++)
+            {
                 labeld[i] /= 2;
-                if (labeld[i] > max1) {
-                    max2 = max1;
+                if (labeld[i] > max1)
+                {
                     max1 = labeld[i];
-
                     p2 = p1;
                     p1 = i;
                 }
             }
 
-            System.err.print(", Winner is " + p1 + "(" + max1 + ") second is " + p2 + "(" + max2 + ")");
-            if (p1 == Integer.valueOf(testCase.label)) {
-                System.err.println(" CORRECT!");
+            if (p1 == Integer.valueOf(testCase.label))
+            {
                 numCorrect++;
-
-            } else if (p2 == Integer.valueOf(testCase.label)) {
-                System.err.println(" Almost!");
+            }
+            else if (p2 == Integer.valueOf(testCase.label))
+            {
                 numAlmost++;
-            } else {
-                System.err.println(" wrong :(");
+            }
+            else
+            {
                 numWrong++;
             }
-
-            System.err.println("Error Rate = " + ((numWrong / (numAlmost + numCorrect + numWrong)) * 100));
-
         }
+
+        System.out.println("Error Rate = "
+                + ((numWrong / (numAlmost + numCorrect + numWrong)) * 100));
     }
 }

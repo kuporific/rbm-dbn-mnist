@@ -6,16 +6,15 @@ import com.github.tjake.util.Utilities;
 /**
  * Converts raw values to standard deviations
  */
-public class GaussianLayer extends Layer{
-
-    final Layer delegate;
+public class GaussianLayer extends Layer
+{
+    private final Layer delegate;
     private float mean;
     private float stddev;
 
-
     public GaussianLayer(Layer delegate)
     {
-        super(null);
+        super((float[]) null);
         this.delegate = delegate;
 
         convertToStddev();
@@ -24,7 +23,7 @@ public class GaussianLayer extends Layer{
 
     public GaussianLayer(Layer delegate, Layer base)
     {
-        super(null);
+        super((float[]) null);
 
         GaussianLayer gbase = (GaussianLayer) base;
 
@@ -40,92 +39,114 @@ public class GaussianLayer extends Layer{
         stddev = Utilities.stddev(delegate, mean);
         stddev = stddev < 0.1f ? 0.1f : stddev;
 
-        double min = Double.MAX_VALUE, max = Double.MIN_VALUE;
+        double min = Double.MAX_VALUE;
+        double max = Double.MIN_VALUE;
 
-
-        for (int i=0; i<delegate.size(); i++)
+        for (int i = 0; i < delegate.size(); i++)
         {
-            double v = (delegate.get(i) - mean)/stddev;
-            if (v > max) max = v;
-            if (v < min) min = v;
+            double v = (delegate.get(i) - mean) / stddev;
+            if (v > max)
+            {
+                max = v;
+            }
+            if (v < min)
+            {
+                min = v;
+            }
 
-            delegate.set(i, (float)v);
+            delegate.set(i, (float) v);
         }
-
-
     }
 
-    public float[] fromGaussian() {
+    public float[] fromGaussian()
+    {
         double min = Double.MAX_VALUE, max = Double.MIN_VALUE;
-        float [] output = new float[delegate.size()];
-        for (int i = 0; i < output.length; i++) {
-            double v =  delegate.get(i);
+        float[] output = new float[delegate.size()];
+        for (int i = 0; i < output.length; i++)
+        {
+            double v = delegate.get(i);
 
             //Squash > 2 sigma
             if (Math.abs(v) > 2)
+            {
                 v /= 2;
+            }
 
-            v  = v * stddev + mean;
+            v = v * stddev + mean;
 
-            if (v > max) max = v;
-            if (v < min) min = v;
+            if (v > max)
+            {
+                max = v;
+            }
+            if (v < min)
+            {
+                min = v;
+            }
 
-            output[i] = (float)(v < 0 ? 0 : v);
-            output[i] = (float)(v > 255 ? 255 : v);
+            output[i] = (float) (v < 0 ? 0 : v);
+            output[i] = (float) (v > 255 ? 255 : v);
         }
-
 
         return output;
     }
 
-
     @Override
-    public void set(int i, float f) {
-        delegate.set(i,f);
+    public void set(int i, float f)
+    {
+        delegate.set(i, f);
     }
 
     @Override
-    public float get(int i) {
+    public float get(int i)
+    {
         return delegate.get(i);
     }
 
     @Override
-    public void add(int i, float f) {
-        delegate.add(i,f);
+    public void add(int i, float f)
+    {
+        delegate.add(i, f);
     }
 
     @Override
-    public void div(int i, float f) {
-        delegate.div(i,f);
+    public void div(int i, float f)
+    {
+        delegate.div(i, f);
     }
 
     @Override
-    public void mult(int i, float f) {
-        delegate.div(i,f);
+    public void mult(int i, float f)
+    {
+        delegate.div(i, f);
     }
 
     @Override
-    public int size() {
+    public int size()
+    {
         return delegate.size();
     }
 
     @Override
-    public Layer clone() {
+    public Layer clone()
+    {
         return delegate.clone();
     }
 
     @Override
-    public void clear() {
+    public void clear()
+    {
         delegate.clear();
     }
 
     @Override
-    public void copy(float[] src) {
+    public void copy(float[] src)
+    {
         delegate.copy(src);
     }
 
     @Override
-    public float[] get() {
+    public float[] get()
+    {
         return delegate.get();
     }
 }

@@ -3,59 +3,92 @@ package com.github.tjake.rbm;
 import java.util.Arrays;
 
 /**
- * Represents a layer in nodes in a Neural network, supports some simple operations
+ * Represents a layer in nodes in a Neural network, supports some simple
+ * operations
  */
-public class Layer {
+public class Layer
+{
+    private final float[] layer;
 
-    final float[] layer;
-
-    public Layer(int size) {
+    public Layer(int size)
+    {
         layer = new float[size];
     }
 
-    public Layer(float[] layer){
+    public Layer(float[] layer)
+    {
         this.layer = layer;
     }
 
-    public void set(int i, float f) {
+    public Layer(int[] layer)
+    {
+        float[] f = new float[layer.length];
+        for (int i : layer)
+        {
+            f[i] = (float) i;
+        }
+        this.layer = f;
+    }
+
+    public Layer(byte[] layer)
+    {
+        float[] f = new float[layer.length];
+        for (int i : layer)
+        {
+            f[i] = (float) i;
+        }
+        this.layer = f;
+    }
+
+    public void set(int i, float f)
+    {
         layer[i] = f;
     }
 
-    public float get(int i) {
-       return layer[i];
+    public float get(int i)
+    {
+        return layer[i];
     }
 
-    public void add(int i, float f) {
+    public void add(int i, float f)
+    {
         layer[i] += f;
     }
 
-    public void div(int i, float f) {
+    public void div(int i, float f)
+    {
         layer[i] /= f;
     }
 
-    public void mult(int i, float f) {
+    public void mult(int i, float f)
+    {
         layer[i] *= f;
     }
 
-    public int size() {
+    public int size()
+    {
         return layer.length;
     }
 
-    public Layer clone() {
+    public Layer clone()
+    {
         Layer c = new Layer(layer.length);
-        System.arraycopy(layer,0,c.layer,0,layer.length);
+        System.arraycopy(layer, 0, c.layer, 0, layer.length);
         return c;
     }
 
-    public void clear() {
-        Arrays.fill(layer,0.0f);
+    public void clear()
+    {
+        Arrays.fill(layer, 0.0f);
     }
 
-    public void copy(float[] src) {
-        System.arraycopy(layer,0,src,0,layer.length);
+    public void copy(float[] src)
+    {
+        System.arraycopy(layer, 0, src, 0, layer.length);
     }
 
-    public float[] get() {
+    public float[] get()
+    {
         return layer;
     }
 }

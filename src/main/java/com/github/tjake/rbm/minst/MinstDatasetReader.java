@@ -1,27 +1,33 @@
 package com.github.tjake.rbm.minst;
 
+import com.github.tjake.rbm.DataSetReader;
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOError;
 import java.io.IOException;
-import java.security.SecureRandom;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.zip.GZIPInputStream;
 
 /**
  * Reads the Minst image data from
  */
-public class MinstDatasetReader implements Enumeration<MinstItem>
+public class MinstDatasetReader implements Enumeration<MinstItem>, DataSetReader
 {
     final DataInputStream labelsBuf;
     final DataInputStream imagesBuf;
 
-    SecureRandom r = new SecureRandom();
+    Random r = new Random();
 
-    final Map<String, List<MinstItem>> trainingSet = new HashMap<String, List<MinstItem>>();
-    final Map<String, List<MinstItem>> testSet = new HashMap<String, List<MinstItem>>();
+    final SortedMap<String, List<MinstItem>> trainingSet = new TreeMap<>();
+    final SortedMap<String, List<MinstItem>> testSet = new TreeMap<>();
 
     int rows = 0;
     int cols = 0;
@@ -36,25 +42,12 @@ public class MinstDatasetReader implements Enumeration<MinstItem>
             imagesBuf = new DataInputStream(new GZIPInputStream(new FileInputStream(imagesFile)));
 
             verify();
-
             createTrainingSet();
-        }
-        catch (FileNotFoundException e)
-        {
-            throw new IOError(e);
         }
         catch (IOException e)
         {
             throw new IOError(e);
         }
-        finally
-        {
-
-
-        }
-
-
-
     }
 
     public void createTrainingSet() {
@@ -63,20 +56,23 @@ public class MinstDatasetReader implements Enumeration<MinstItem>
         while (!done || !hasMoreElements()) {
             MinstItem i = nextElement();
 
-            if (r.nextDouble() > 0.3) {
-                List<MinstItem> l = testSet.get(i.label);
-                if (l == null)
-                    l = new ArrayList<MinstItem>();
+            if (r.nextDouble() > 0.3)
+            {
+                List<MinstItem> l = testSet.computeIfAbsent(
+                        i.label,
+                        s -> new ArrayList<>());
+                l.add(i);
                 testSet.put(i.label, l);
+            }
+            else
+            {
+                List<MinstItem> l = trainingSet.computeIfAbsent(
+                        i.label,
+                        s -> new ArrayList<>());
 
                 l.add(i);
-            } else {
-                List<MinstItem> l = trainingSet.get(i.label);
-                if (l == null)
-                    l = new ArrayList<MinstItem>();
+
                 trainingSet.put(i.label, l);
-
-                l.add(i);
             }
 
             if (trainingSet.isEmpty())
@@ -94,25 +90,18 @@ public class MinstDatasetReader implements Enumeration<MinstItem>
         }
     }
 
-    public MinstItem getTestItem()
+    @Override
+    public MinstItem getRandomTestItem()
     {
-        List<MinstItem> list = testSet.get(String.valueOf(r.nextInt(10)));
+        List<MinstItem> list = testSet.get(String.valueOf(r.nextInt(MinstItem.NUMBER_OF_LABELS)));
         return list.get(r.nextInt(list.size()));
-
     }
 
-    public MinstItem getTrainingItem()
+    @Override
+    public MinstItem getRandomTrainingItem()
     {
-        List<MinstItem> list = trainingSet.get(String.valueOf(r.nextInt(10)));
+        List<MinstItem> list = trainingSet.get(String.valueOf(r.nextInt(MinstItem.NUMBER_OF_LABELS)));
         return list.get(r.nextInt(list.size()));
-
-    }
-
-    public MinstItem getTrainingItem(int i)
-    {
-        List<MinstItem> list = trainingSet.get(String.valueOf(i));
-        return list.get(r.nextInt(list.size()));
-
     }
 
     private void verify() throws IOException
@@ -142,19 +131,18 @@ public class MinstDatasetReader implements Enumeration<MinstItem>
 
     public MinstItem nextElement()
     {
-        MinstItem m = new MinstItem();
-
         try
         {
-            m.label = String.valueOf(labelsBuf.readUnsignedByte());
-            m.data = new int[rows * cols];
+            final byte[] data = new byte[rows * cols];
 
-            for (int i = 0; i < m.data.length; i++)
+            for (int i = 0; i < rows * cols; i++)
             {
-                m.data[i] = imagesBuf.readUnsignedByte();
+                data[i] = saturatedCast(imagesBuf.readUnsignedByte());
             }
 
-            return m;
+            return new MinstItem(
+                    Integer.toString(labelsBuf.readUnsignedByte()),
+                    data);
         }
         catch (IOException e)
         {
@@ -165,6 +153,39 @@ public class MinstDatasetReader implements Enumeration<MinstItem>
         {
             current++;
         }
+    }
 
+    @Override
+    public List<String> getLabels()
+    {
+        return new ArrayList<>(trainingSet.keySet());
+    }
+
+    @Override
+    public int getRows()
+    {
+        return rows;
+    }
+
+    @Override
+    public int getCols()
+    {
+        return cols;
+    }
+
+    private byte saturatedCast(int integer)
+    {
+        if (integer > Byte.MAX_VALUE)
+        {
+            return Byte.MAX_VALUE;
+        }
+        else if (integer < Byte.MIN_VALUE)
+        {
+            return Byte.MIN_VALUE;
+        }
+        else
+        {
+            return (byte) integer;
+        }
     }
 }
