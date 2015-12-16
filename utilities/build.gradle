@@ -1,0 +1,21 @@
+group 'com.implementsblog'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.google.guava:guava:18.0'
+    compile 'net.coobird:thumbnailator:0.4.8'
+    compile 'org.javatuples:javatuples:1.2'
+    compile 'javazoom:jlayer:1.0.1'
+
+    compile 'org.slf4j:slf4j-api:1.7.13'
+    compile 'log4j:log4j:1.2.17'
+    compile 'org.slf4j:slf4j-log4j12:1.7.13'
+}

@@ -1,7 +1,7 @@
 Differences from source repo
 ============================
 
-This fork added additional classes to analyze spectrograms of classical piano works. The audio files were taken from the [Classical Piano Midi Page](http://www.piano-midi.de/) and processed by the utility classes in the `utility` package. The `com.github.tjake.rbm.music` package contains classes based on their `com.github.tjake.rbm.minst` counterparts, but they should also be generic enough that they can also analyze the MNIST data set with little modification.
+This fork added additional classes to analyze spectrograms of classical piano works. The audio files were taken from the [Classical Piano Midi Page](http://www.piano-midi.de/) and processed by the utility classes in the `utilities` sub-project. The `com.github.tjake.rbm.music` package contains classes based on their `com.github.tjake.rbm.minst` counterparts, but they should also be generic enough that they can also analyze the MNIST data set with little modification.
 
 Other changes include making some of the classes in `com.github.tjake.rbm` a little more generic, as well as general formatting changes.
 
